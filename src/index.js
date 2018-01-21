@@ -48,7 +48,7 @@ class Square extends React.Component {
     if (this.state.isOn) {
       return "X";
     } else {
-      return "O";
+      return " ";
     }
   }
 
@@ -94,12 +94,9 @@ class Board {
   // Sets whether the square is on.
   setSquare(r, c, isOn) {
     if (this.immutable) {
-      console.log("setSquare: this.immutable = true");
       var newBoard = this.copy();
       return newBoard.setSquare(r, c, isOn);
     }
-
-    console.log("setSquare(" + r + ", " + c + ", " + isOn + ")");
 
     this.squares[r][c] = isOn;
     return this;
@@ -153,27 +150,22 @@ class Board {
   // Returns all neighboring squares. Does not return the given square.
   // It's a generator; yields {r: r, c:c} objects.
   * getNeighborCoords(r, c) {
-    console.log("getNeighborCoords(" + r + ", " + c + ")");
     for (var i = -1; i < 2; i++) {
       for (var j = -1; j < 2; j++) {
         // Coords for the current square.
         var newR = r + i;
         var newC = c + j;
-        console.log("i=" + i + " j=" + j + " newR: " + newR + " newC: " + newC);
         
         // Check if this is the original square.
         if (newR === r && newC === c) {
-          console.log("Original square.");
           continue;
         }
 
         // Check if the square is off the edge of the board.
         if (newR < 0 || newR >= this.rows) {
-          console.log("Row max: " + this.rows);
           continue;
         }
         if (newC < 0 || newC >= this.cols) {
-          console.log("Col max: " + this.cols);
           continue;
         }
 
@@ -181,6 +173,21 @@ class Board {
         yield {r: newR, c: newC};
       }
     }
+  }
+
+  isWin() {
+    console.log(this.squares);
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        let isOn = this.getSquare(r, c);
+        if (this.getSquare(r, c)) {
+          return false;
+        }
+      }
+    }
+
+    // All squares are false.
+    return true;
   }
 }
 
@@ -239,7 +246,8 @@ class BoardView extends React.Component {
       ret.push(
           <div key={r.toString()} className="board-row">
           {row}
-          </div>);
+          </div>
+      );
     }
     return (
         <div>
@@ -249,26 +257,85 @@ class BoardView extends React.Component {
   }
 
   handleSquareClicked(r, c) {
+    if (this.props.freezeGame) {
+      return;
+    }
+
     var newBoard = this.state.board.doMove(r, c).makeImmutable();
     this.setState({board: newBoard});
+
+    if (this.props.onMove) {
+      this.props.onMove();
+    }
+
+    if (this.props.onWin && newBoard.isWin()) {
+      this.props.onWin();
+    }
   }
 
 }
 
 
 class Game extends React.Component {
+  constructor(props) {
+    super(props);
+    
+    this.state = {
+      isWin: false,
+      moveCount: 0
+    }
+  }
+
+  renderWin() {
+    if (this.state.isWin) {
+      return (
+          <div>You win!</div>
+      );
+    } else {
+      return "";
+    }
+
+  }
+  
   render() {
     return (
       <div className="game">
         <div className="game-board">
-          <BoardView />
+          <BoardView
+            onMove={() => this.handleMove()}
+            onWin={() => this.handleWin()}
+            freezeGame={this.state.isWin}
+            />
         </div>
         <div className="game-info">
-          <div>{/* status */}</div>
-          <ol>{/* TODO */}</ol>
+          <div>Your goal: {"Remove all X's from the board!"}</div>
+          <div>Move count: {this.state.moveCount}</div>
+          {this.renderWin()}
         </div>
       </div>
     );
+  }
+
+  handleMove() {
+    if (this.state.isWin) {
+      throw "Error: Game.handleMove() called after Game.handleWin()"
+    }
+    
+    var newState = update(this.state, {
+      moveCount: {$apply: (x) => x + 1}
+    });
+    this.setState(newState);
+  }
+
+  handleWin() {
+    if (this.state.isWin) {
+      throw "Error: Game.handleWin() called more than once"
+    }
+
+    var newState = update(this.state, {
+      isWin: {$set: true}
+    })
+    this.setState(newState);
   }
 }
 
