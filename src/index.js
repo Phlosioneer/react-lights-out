@@ -77,8 +77,15 @@ class Board {
 
     // TODO: Initialize the board to something interesting.
     for (let i = 0; i < startMoves; i++) {
-      this.doMove(0, 0);
+      let r = this.randomInt(this.rows);
+      let c = this.randomInt(this.cols);
+      this.doMove(r, c);
     }
+  }
+
+  // Helper function.
+  randomInt(max) {
+    return Math.floor(Math.random() * max);
   }
 
   // Returns whether the square is on.
@@ -310,7 +317,7 @@ class Game extends React.Component {
       gameID: 0,      // Hack to force Board to reset whenever New Game is pressed.
       rows: 4,
       cols: 4,
-      moves: 1
+      difficulty: 0   // moves = 2 ^ difficulty
     }
   }
 
@@ -333,7 +340,7 @@ class Game extends React.Component {
         freezeGame={this.state.isWin}
         rows={this.state.rows}
         cols={this.state.cols}
-        moves={this.state.moves}
+        moves={this.calcMoves()}
         gameID={this.state.gameID}
         />
     );
@@ -352,6 +359,11 @@ class Game extends React.Component {
             onChange={(delta) => this.handleColChange(delta)}
             name="cols"
             />
+          <IncDecButton
+            key="difficulty"
+            onChange={(delta) => this.handleDifficultyChange(delta)}
+            name="difficulty"
+            />
           <button onClick={() => this.handleNewGame()}>New Game</button>
         </div>
     );
@@ -367,11 +379,18 @@ class Game extends React.Component {
         <div className="game-info">
           <div>Your goal: {"Remove all X's from the board!"}</div>
           <div>Move count: {this.state.moveCount}</div>
+          <div>Current Difficulty: {this.state.difficulty}</div>
           {this.renderButtons()}
           {this.renderWin()}
         </div>
       </div>
     );
+  }
+
+  calcMoves() {
+    var ret = Math.pow(2, this.state.difficulty);
+    console.log(ret);
+    return ret;
   }
 
   handleMove() {
@@ -408,7 +427,7 @@ class Game extends React.Component {
 
   handleRowChange(delta) {
     var newState = update(this.state, {
-      rows: {$apply: (x) => Math.max(x + delta, 0)}
+      rows: {$apply: (x) => Math.max(x + delta, 2)}
     });
     newState = this.applyNewGame(newState);
     this.setState(newState);
@@ -416,7 +435,16 @@ class Game extends React.Component {
 
   handleColChange(delta) {
     var newState = update(this.state, {
-      cols: {$apply: (x) => Math.max(x + delta, 0)}
+      cols: {$apply: (x) => Math.max(x + delta, 2)}
+    });
+    newState = this.applyNewGame(newState);
+    this.setState(newState);
+  }
+
+  handleDifficultyChange(delta) {
+    
+    var newState = update(this.state, {
+      difficulty: {$apply: (x) => Math.max(x + delta, 0)}
     });
     newState = this.applyNewGame(newState);
     this.setState(newState);
