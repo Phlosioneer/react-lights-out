@@ -1,4 +1,7 @@
 
+
+// TODO: More/Better documentation.
+
 // React stuff.
 import React from 'react';
 import ReactDOM from 'react-dom';
@@ -30,17 +33,9 @@ class Square extends React.Component {
     );
   }
 
-  // React gave a warning for spelling Receive wrong. Neat!
   componentWillReceiveProps(nextProps) {
-    // I do it this way because otherwise newValue isn't false
-    // when nextProps.value = undefined.
-    var newValue = false;
-    if (nextProps.value) {
-      newValue = true;
-    }
-
     this.setState({
-      isOn: newValue
+      isOn: nextProps.value
     });
   }
 
@@ -176,10 +171,8 @@ class Board {
   }
 
   isWin() {
-    console.log(this.squares);
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
-        let isOn = this.getSquare(r, c);
         if (this.getSquare(r, c)) {
           return false;
         }
@@ -191,7 +184,7 @@ class Board {
   }
 }
 
-// This is a gird of squares. The width is in this.cols, the height is in this.rows.
+// This is a grid of squares. The width is in this.cols, the height is in this.rows.
 // When the board is made, the squares are initialized using this.startMoves random
 // moves.
 class BoardView extends React.Component {
@@ -201,16 +194,14 @@ class BoardView extends React.Component {
 
     // The dimensions of the board.
     // TODO: Make these into properties.
-    var rows = 3;
-    var cols = 3;
-
+    var rows = props.rows;
+    var cols = props.cols;
+    var moves = props.moves;
 
     // Set the initial state.
     this.state = {
-      board: new Board(rows, cols).makeImmutable()
+      board: new Board(rows, cols, moves).makeImmutable()
     };
-
-
   }
 
   // Returns whether the square is on.
@@ -273,8 +264,41 @@ class BoardView extends React.Component {
     }
   }
 
+  componentWillReceiveProps(newProps) {
+    if (newProps.rows !== this.props.rows
+        || newProps.cols !== this.props.cols
+        || newProps.moves !== this.props.moves
+        || newProps.gameID !== this.props.gameID
+       ) {
+         this.setState({
+           board: new Board(newProps.rows, newProps.cols, newProps.moves)
+         });
+    }
+  }
 }
 
+class IncDecButton extends React.Component {
+  render() {
+    return (
+        <div>
+          <button
+            key="+"
+            onClick={() => this.handleChange(1)}
+            >{this.props.name + "+"}</button>
+          <button
+            key="-"
+            onClick={() => this.handleChange(-1)}
+            >{this.props.name + "-"}</button>
+        </div>
+    );
+  }
+
+  handleChange(delta) {
+    if (this.props.onChange) {
+      this.props.onChange(delta);
+    }
+  }
+}
 
 class Game extends React.Component {
   constructor(props) {
@@ -282,7 +306,11 @@ class Game extends React.Component {
     
     this.state = {
       isWin: false,
-      moveCount: 0
+      moveCount: 0,
+      gameID: 0,      // Hack to force Board to reset whenever New Game is pressed.
+      rows: 4,
+      cols: 4,
+      moves: 1
     }
   }
 
@@ -296,20 +324,50 @@ class Game extends React.Component {
     }
 
   }
+
+  renderBoard() {
+    return (
+        <BoardView
+        onMove={() => this.handleMove()}
+        onWin={() => this.handleWin()}
+        freezeGame={this.state.isWin}
+        rows={this.state.rows}
+        cols={this.state.cols}
+        moves={this.state.moves}
+        gameID={this.state.gameID}
+        />
+    );
+  }
+
+  renderButtons() {
+    return (
+        <div>
+          <IncDecButton
+            key="rows"
+            onChange={(delta) => this.handleRowChange(delta)}
+            name="rows"
+            />
+          <IncDecButton
+            key="cols"
+            onChange={(delta) => this.handleColChange(delta)}
+            name="cols"
+            />
+          <button onClick={() => this.handleNewGame()}>New Game</button>
+        </div>
+    );
+  }
+
   
   render() {
     return (
       <div className="game">
         <div className="game-board">
-          <BoardView
-            onMove={() => this.handleMove()}
-            onWin={() => this.handleWin()}
-            freezeGame={this.state.isWin}
-            />
+          {this.renderBoard()}
         </div>
         <div className="game-info">
           <div>Your goal: {"Remove all X's from the board!"}</div>
           <div>Move count: {this.state.moveCount}</div>
+          {this.renderButtons()}
           {this.renderWin()}
         </div>
       </div>
@@ -332,11 +390,43 @@ class Game extends React.Component {
       throw "Error: Game.handleWin() called more than once"
     }
 
+    // Note: this clobbers any state change from handleMove().
     var newState = update(this.state, {
+      moveCount: {$apply: (x) => x + 1},
       isWin: {$set: true}
     })
     this.setState(newState);
   }
+
+  applyNewGame(state) {
+    return update(state, {
+      moveCount: {$set: 0},
+      isWin: {$set: false},
+      gameID: {$apply: (x) => x + 1}
+    });
+  }
+
+  handleRowChange(delta) {
+    var newState = update(this.state, {
+      rows: {$apply: (x) => Math.max(x + delta, 0)}
+    });
+    newState = this.applyNewGame(newState);
+    this.setState(newState);
+  }
+
+  handleColChange(delta) {
+    var newState = update(this.state, {
+      cols: {$apply: (x) => Math.max(x + delta, 0)}
+    });
+    newState = this.applyNewGame(newState);
+    this.setState(newState);
+  }
+
+  handleNewGame() {
+    var newState = this.applyNewGame(this.state);
+    this.setState(newState);
+  }
+
 }
 
 // ========================================
