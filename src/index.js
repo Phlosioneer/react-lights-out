@@ -378,6 +378,7 @@ class Game extends React.Component {
         </div>
         <div className="game-info">
           <div>Your goal: {"Remove all X's from the board!"}</div>
+		  <div>Instructions: Click anywhere in the grid. The boxes will toggle on and off - but be careful! The boxes nearby also flip!</div>
           <div>Move count: {this.state.moveCount}</div>
           <div>Current Difficulty: {this.state.difficulty}</div>
           {this.renderButtons()}
